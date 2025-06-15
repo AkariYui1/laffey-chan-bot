@@ -1,6 +1,6 @@
 import json
 from typing import Any
-from .consts import QUARANTINE_FILE
+from consts import QUARANTINE_FILE
 
 def load_quarantine_channels() -> dict[str, Any]:
     """Load quarantine channels data from JSON file"""

@@ -20,3 +20,7 @@ Chạy:
 ```bash
 $ python python/Main/main.py
 ```
+
+## Credits
+
+* [Từ điển tiếng Việt](https://github.com/undertheseanlp/dictionary)

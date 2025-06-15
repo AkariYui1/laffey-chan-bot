@@ -1,6 +1,7 @@
 from bot_setup import bot
 import discord
 from datetime import datetime
+from Fun.vie_dict.logic import handle_viedict_message
 from quarantine import is_quarantine_channel, increment_ban_counter, get_log_channel
 from Fun.number_count.counting_logic import handle_counting_message
 
@@ -25,6 +26,9 @@ async def on_message(message: discord.Message):
     # Ignore bot messages
     if message.author.bot:
         return
+
+    await handle_counting_message(message)
+    await handle_viedict_message(message)
 
     # Check if message is in a quarantine channel
     if message.guild and is_quarantine_channel(message.guild.id, message.channel.id):

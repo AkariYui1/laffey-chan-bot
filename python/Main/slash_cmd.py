@@ -1,5 +1,5 @@
-from bot_setup import bot
 import discord  # type: ignore
+from Fun.vie_dict.setup import setup_viedict_in_existing_channel, setup_viedict_channel
 from warn_logic import (
     warn_user_logic,
     check_warnings_logic,
@@ -8,7 +8,7 @@ from warn_logic import (
     remove_timeout_logic,
 )
 from channels import setup_quarantine_channel, setup_log_channel
-from .consts import MessageOwner
+from consts import MessageOwner, bot
 from Fun.number_count.counting_logic import get_counting_stats
 from Fun.number_count.counting_setup import setup_counting_channel, setup_counting_in_existing_channel
 
@@ -198,6 +198,41 @@ async def setupcounting_slash(
             ephemeral=True,
         )
 
+@bot.tree.command(name="setupviedict", description="Setup a counting channel for the server")
+async def setupviedict_slash(
+    interaction: discord.Interaction, 
+    channel: discord.TextChannel = None,
+    category_name: str = "Fun"
+):
+    """Setup counting channel with slash command"""
+    # Check for specific permissions
+    if not (
+        interaction.user.guild_permissions.manage_channels
+        and interaction.user.guild_permissions.manage_roles
+    ):
+        await interaction.response.send_message(
+            "❌ Cần quyền quản lí kênh và role để tạo kênh!",
+            ephemeral=True,
+        )
+        return
+
+    if channel:
+        # Setup counting in the specified existing channel
+        await setup_viedict_in_existing_channel(
+            channel,
+            interaction.user,
+            interaction.response.send_message,
+            ephemeral=True,
+        )
+    else:
+        # Create a new counting channel
+        await setup_viedict_channel(
+            interaction.guild,
+            interaction.user,
+            interaction.response.send_message,
+            category_name,
+            ephemeral=True,
+        )
 
 @bot.tree.command(name="countingstats", description="View counting statistics")
 async def countingstats_slash(

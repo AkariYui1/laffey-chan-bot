@@ -1,57 +1,58 @@
-import json
-import discord # type: ignore
-import os
 from datetime import datetime
-from Main.consts import COUNTING_FILE
+import json
+import random
 
-def load_counting_channels():
-    """Load counting channels data from JSON file"""
+import discord
+from dictionary import Dictionary
+from Main.consts import VIEDICT_DIR, VIEDICT_FILE
+
+dictionary: Dictionary | None = None
+if not dictionary or dictionary.words:
+    dictionary = Dictionary()
+    dictionary.load(VIEDICT_DIR)
+    for i in range(len(dictionary.words)):
+        dictionary.words[i].text = dictionary.words[i].text.lower()
+        
+
+def load_saved_viedict_datas() -> dict:
     try:
-        with open(COUNTING_FILE, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
+        return json.load(open(VIEDICT_FILE, "r"))
+    except:
         return {}
 
-def save_counting_channels(counting_data):
-    """Save counting channels data to JSON file"""
-    with open(COUNTING_FILE, "w") as f:
-        json.dump(counting_data, f, indent=2)
+def save_viedict_data(data: dict):
+    json.dump(data, open(VIEDICT_FILE, "w"), indent=2)
 
-def add_counting_channel(guild_id, channel_id):
-    """Add a channel as counting channel for a guild"""
-    counting_data = load_counting_channels()
+def add_viedict_channel(guild_id, channel_id):
+    loaded = load_saved_viedict_datas()
     guild_str = str(guild_id)
     
-    if guild_str not in counting_data:
-        counting_data[guild_str] = {
+    if not guild_id in loaded:
+        loaded[guild_str] = {
             "channel_id": None,
-            "current_number": 0,
+            "current_word": random.choice(dictionary.words).text,
             "last_user_id": None,
             "high_score": 0,
-            "total_counts": 0,
+            "total_score": 0,
             "user_stats": {}
         }
-    
-    counting_data[guild_str]["channel_id"] = channel_id
-    save_counting_channels(counting_data)
+
+    loaded[guild_str]["channel_id"] = channel_id
+    save_viedict_data(loaded)
     return True
 
-def get_counting_channel(guild_id):
-    """Get the counting channel for a guild"""
-    counting_data = load_counting_channels()
+def get_viedict_channel(guild_id):
+    loaded = load_saved_viedict_datas()
     guild_str = str(guild_id)
-    
-    if guild_str in counting_data:
-        return counting_data[guild_str].get("channel_id")
+
+    if guild_str in loaded:
+        return loaded[guild_str].get("channel_id")
     return None
 
-def is_counting_channel(guild_id, channel_id):
-    """Check if a channel is the counting channel for a guild"""
-    return get_counting_channel(guild_id) == channel_id
+def is_viedict_channel(guild_id, channel_id):
+    return get_viedict_channel(guild_id) == channel_id
 
-async def setup_counting_channel(guild, moderator, response_func, category_name="Fun", ephemeral=False):
-    """Setup counting channel with proper permissions"""
-    
+async def setup_viedict_channel(guild, moderator, response_func, category_name="Fun", ephemeral=False):
     # Check if we have the necessary permissions
     if not guild.me.guild_permissions.manage_channels:
         error_msg = "❌ I don't have permission to create channels!"
@@ -80,7 +81,7 @@ async def setup_counting_channel(guild, moderator, response_func, category_name=
             return None
 
     # Create counting channel
-    counting_channel = None
+    viedict_channel = None
     try:
         everyone_role = guild.default_role
         counting_overwrites = {
@@ -104,40 +105,38 @@ async def setup_counting_channel(guild, moderator, response_func, category_name=
             ),
         }
 
-        counting_channel = await guild.create_text_channel(
-            name="đếm-số",
+        viedict_channel = await guild.create_text_channel(
+            name="nối-từ-tiếng-Việt",
             category=category,
             overwrites=counting_overwrites,
-            topic="Đếm số từ 1.",
+            topic="",
         )
 
         # Add channel to the database
-        add_counting_channel(guild.id, counting_channel.id)
+        add_viedict_channel(guild.id, viedict_channel.id)
 
         # Create initial message in the counting channel
         initial_embed = discord.Embed(
-            title="🔢 Counting Channel",
-            description="Welcome to the counting channel! Here's how it works:",
+            title="Nối từ tiếng Việt :clueful:",
+            description="Luật khá đơn giản: lấy từ cuối cùng trong cụm từ trước và gửi vào 1 cụm từ bắt đầu bằng từ cuối ấy.",
             color=discord.Color.blue(),
         )
         initial_embed.add_field(
-            name="📋 Rules",
-            value="• Count in order starting from 1\n• Don't count twice in a row\n• Numbers can have text/symbols after them\n• Use 'resetnum' to manually reset",
+            name="Yêu cầu",
+            value="Cụm từ mới bắt đầu bằng từ cuối của cụm từ trước (ví dụ xin chào -> chào hỏi). **Không trùng với (cụm) từ trước!**",
             inline=False,
         )
         initial_embed.add_field(
-            name="🎯 Goal",
-            value="Try to reach the highest number possible as a server!",
+            name="Có điểm dừng không?",
+            value="Có. Nếu như không thể nối tiếp được (ví dụ như chảnh chọe) hoặc sai quá 3 lần, bot sẽ đưa ra (cụm) từ mới.",
             inline=False,
         )
-        initial_embed.set_footer(text=f"Channel created by {moderator} • Start counting with '1'!")
-
-        await counting_channel.send(embed=initial_embed)
+        await viedict_channel.send(embed=initial_embed)
 
         # Send success message
         embed = discord.Embed(
-            title="🔢 Counting Channel Setup Complete",
-            description=f"Successfully set up counting channel: {counting_channel.mention}",
+            title="VieDict Channel Setup Complete",
+            description=f"Successfully set up counting channel: {viedict_channel.mention}",
             color=discord.Color.green(),
             timestamp=datetime.now(),
         )
@@ -157,9 +156,9 @@ async def setup_counting_channel(guild, moderator, response_func, category_name=
             await response_func(error_msg)
         return None
 
-    return counting_channel
+    return viedict_channel
 
-async def setup_counting_in_existing_channel(channel, moderator, response_func, ephemeral=False):
+async def setup_viedict_in_existing_channel(channel, moderator, response_func, ephemeral=False):
     """Setup counting in an existing channel"""
     
     # Check if we have the necessary permissions in this channel
@@ -181,26 +180,24 @@ async def setup_counting_in_existing_channel(channel, moderator, response_func, 
 
     try:
         # Add channel to the database
-        add_counting_channel(channel.guild.id, channel.id)
+        add_viedict_channel(channel.guild.id, channel.id)
 
         # Create initial message in the counting channel
         initial_embed = discord.Embed(
-            title="🔢 Counting Channel Setup",
-            description="This channel has been set up for counting! Here's how it works:",
+            title="Nối từ tiếng Việt :clueful:",
+            description="Luật khá đơn giản: lấy từ cuối cùng trong cụm từ trước và gửi vào 1 cụm từ bắt đầu bằng từ cuối ấy.",
             color=discord.Color.blue(),
         )
         initial_embed.add_field(
-            name="📋 Rules",
-            value="• Count in order starting from 1\n• Don't count twice in a row\n• Numbers can have text/symbols after them\n• Use 'resetnum' to manually reset",
+            name="Yêu cầu",
+            value="Cụm từ mới bắt đầu bằng từ cuối của cụm từ trước (ví dụ xin chào -> chào hỏi). **Không trùng với (cụm) từ trước!**",
             inline=False,
         )
         initial_embed.add_field(
-            name="🎯 Goal",
-            value="Try to reach the highest number possible as a server!",
+            name="Có điểm dừng không?",
+            value="Có. Nếu như không thể nối tiếp được (ví dụ như chảnh chọe) hoặc sai quá 3 lần, bot sẽ đưa ra (cụm) từ mới.",
             inline=False,
         )
-        initial_embed.set_footer(text=f"Channel configured by {moderator} • Start counting with '1'!")
-
         await channel.send(embed=initial_embed)
 
         # Send success message

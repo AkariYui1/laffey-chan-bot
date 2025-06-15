@@ -1,5 +1,5 @@
-from .consts import MessageOwner
-from .bot_warnings import (
+from consts import MessageOwner
+from bot_warnings import (
     add_warning,
     get_user_warnings,
     remove_warnings,
