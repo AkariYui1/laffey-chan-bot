@@ -1,8 +1,6 @@
 import json
 from datetime import datetime
-
-WARNINGS_FILE = "warnings.json"
-
+from .consts import WARNINGS_FILE
 
 def load_warnings():
     """Load warnings data from JSON file"""

@@ -18,5 +18,5 @@ $ pip install -r pip-requirements.txt
 Chạy:
 
 ```bash
-$ python python/main.py
+$ python python/Main/main.py
 ```

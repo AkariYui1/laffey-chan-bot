@@ -1,4 +1,5 @@
-from warns import (
+from .consts import MessageOwner
+from .bot_warnings import (
     add_warning,
     get_user_warnings,
     remove_warnings,
@@ -11,16 +12,15 @@ from quarantine import get_log_channel
 from bot_setup import bot
 
 
-# Helper function for warn logic
-async def warn_user_logic(user, moderator, reason, guild, response_func):
+async def warn_user_logic(user: MessageOwner, moderator: MessageOwner, reason: str, guild: discord.Guild, response_func):
     """Shared logic for warning users (used by both prefix and slash commands)"""
     # Prevent warning bots or yourself
     if user.bot:
-        await response_func("❌ You cannot warn bots!")
+        await response_func("❌ Bot không phải thứ để ban:v")
         return
 
     if user.id == moderator.id:
-        await response_func("❌ You cannot warn yourself!")
+        await response_func("❌ Hãy tự kiểm điểm bản thân bằng cách khác")
         return
 
     # Add warning to database
@@ -28,101 +28,82 @@ async def warn_user_logic(user, moderator, reason, guild, response_func):
 
     # Create warning embed
     embed = discord.Embed(
-        title="⚠️ User Warned", color=discord.Color.orange(), timestamp=datetime.now()
+        title="⚠️ Cảnh cáo thành viên", color=discord.Color.orange(), timestamp=datetime.now()
     )
-    embed.add_field(name="User", value=f"{user.mention} ({user})", inline=True)
-    embed.add_field(name="Moderator", value=f"{moderator.mention}", inline=True)
-    embed.add_field(name="Warning Count", value=f"{warning_count}", inline=True)
-    embed.add_field(name="Reason", value=reason, inline=False)
+    embed.add_field(name="Tên", value=f"{user.mention} ({user})", inline=True)
+    embed.add_field(name="Mod cảnh cáo", value=f"{moderator.mention} ({moderator})", inline=True)
+    embed.add_field(name="Số lần cảnh cáo", value=f"{warning_count}", inline=True)
+    embed.add_field(name="Lý do", value=reason, inline=False)
 
     # Log the warning action
     log_channel_id = get_log_channel(guild.id)
+    log_channel = None
     if log_channel_id:
         log_channel = guild.get_channel(log_channel_id)
         if log_channel:
-            log_embed = discord.Embed(
-                title="⚠️ Warning Issued",
-                color=discord.Color.orange(),
-                timestamp=datetime.now(),
-            )
-            log_embed.add_field(
-                name="User", value=f"{user.mention} ({user})", inline=True
-            )
-            log_embed.add_field(
-                name="Moderator", value=f"{moderator.mention}", inline=True
-            )
-            log_embed.add_field(
-                name="Warning Count", value=f"{warning_count}", inline=True
-            )
-            log_embed.add_field(name="Reason", value=reason, inline=False)
-            await log_channel.send(embed=log_embed)
+            await log_channel.send(embed=embed)
 
     # Auto-timeout and action logic
     action_taken = "Warning issued"
     timeout_duration = None
     kick_user = False
 
-    if warning_count == 2:
-        timeout_duration = timedelta(minutes=30)
-        action_taken = "⏰ 30 minute timeout applied (2nd warning)"
-    elif warning_count == 3:
-        timeout_duration = timedelta(hours=3)
-        action_taken = "⏰ 3 hour timeout applied (3rd warning)"
-    elif warning_count == 4:
-        timeout_duration = timedelta(days=7)
-        action_taken = "⏰ 7 day timeout applied (4th warning)"
-    elif warning_count >= 5:
-        kick_user = True
-        action_taken = "🚫 User kicked (5th warning)"
+    match warning_count:
+        case 2:
+            timeout_duration = timedelta(minutes=30)
+            action_taken = "⏰ cấm chat 30 phút (2 lần cảnh cáo)"
+        case 3:
+            timeout_duration = timedelta(hours=3)
+            action_taken = "⏰ cấm chat 3 tiếng (3 lần cảnh cáo)"
+        case 4:
+            timeout_duration = timedelta(days=7)
+            action_taken = "⏰ cấm chat 1 tuần (4 lần cảnh cáo)"
+        case 5:
+            kick_user = True
+            action_taken = "🚫 Kick thẳng (5 lần cảnh cáo)"
 
-    # Then apply punishment
+    # Their end is NOW
     if timeout_duration:
         try:
             await user.timeout(
                 timeout_duration, reason=f"Auto-timeout: {warning_count} warnings"
             )
-            embed.add_field(name="Action Taken", value=action_taken, inline=False)
+            embed.add_field(name="Thực hiện đòn trừng phạt", value=action_taken, inline=False)
             embed.color = discord.Color.red()
 
             # Log the timeout action
-            if log_channel_id:
-                log_channel = guild.get_channel(log_channel_id)
-                if log_channel:
-                    timeout_embed = discord.Embed(
-                        title="⏰ Auto-Timeout Applied",
-                        color=discord.Color.red(),
-                        timestamp=datetime.now(),
-                    )
-                    timeout_embed.add_field(
-                        name="User", value=f"{user.mention} ({user})", inline=True
-                    )
-                    timeout_embed.add_field(
-                        name="Moderator", value="Auto-moderation", inline=True
-                    )
-                    timeout_embed.add_field(
-                        name="Duration", value=str(timeout_duration), inline=True
-                    )
-                    timeout_embed.add_field(
-                        name="Reason",
-                        value=f"Auto-timeout: {warning_count} warnings",
-                        inline=False,
-                    )
-                    await log_channel.send(embed=timeout_embed)
+            if log_channel:
+                timeout_embed = discord.Embed(
+                    title="⏰ +1 cấm chat",
+                    color=discord.Color.red(),
+                    timestamp=datetime.now(),
+                )
+                timeout_embed.add_field(
+                    name="Tên", value=f"{user.mention} ({user})", inline=True
+                )
+                # timeout_embed.add_field(
+                #     name="Mod", value="Auto-Mod", inline=True
+                # )
+                timeout_embed.add_field(
+                    name="Thời gian", value=str(timeout_duration), inline=True
+                )
+                timeout_embed.add_field(
+                    name="Lý do",
+                    value=f"Nhận {warning_count} cảnh cáo",
+                    inline=False,
+                )
+                await log_channel.send(embed=timeout_embed)
 
         except discord.Forbidden:
-            embed.add_field(
-                name="⚠️ Error",
-                value="Could not apply timeout - insufficient permissions",
-                inline=False,
-            )
+            embed.add_field(name="⚠️ Lỗi", value=f"Không đủ thẩm quyền", inline=False)
+
         except Exception as e:
-            embed.add_field(
-                name="⚠️ Error", value=f"Failed to apply timeout: {str(e)}", inline=False
-            )
+            embed.add_field(name="⚠️ Error", value=f"Không cấm chat được: {e}",  inline=False)
+
     elif kick_user:
         try:
             await user.kick(reason=f"Auto-kick: {warning_count} warnings")
-            embed.add_field(name="Action Taken", value=action_taken, inline=False)
+            embed.add_field(name="Thực hiện đòn trừng phạt", value=action_taken, inline=False)
             embed.color = discord.Color.red()
 
             # Log the kick action
@@ -130,7 +111,7 @@ async def warn_user_logic(user, moderator, reason, guild, response_func):
                 log_channel = guild.get_channel(log_channel_id)
                 if log_channel:
                     kick_embed = discord.Embed(
-                        title="🚫 Auto-Kick Applied",
+                        title="🚫 Đã kick tự động",
                         color=discord.Color.red(),
                         timestamp=datetime.now(),
                     )

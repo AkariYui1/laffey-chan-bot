@@ -1,9 +1,8 @@
 import json
+from typing import Any
+from .consts import QUARANTINE_FILE
 
-QUARANTINE_FILE = "quarantine_channels.json"
-
-
-def load_quarantine_channels():
+def load_quarantine_channels() -> dict[str, Any]:
     """Load quarantine channels data from JSON file"""
     try:
         with open(QUARANTINE_FILE, "r") as f:
@@ -14,8 +13,7 @@ def load_quarantine_channels():
 
 def save_quarantine_channels(quarantine_data):
     """Save quarantine channels data to JSON file"""
-    with open(QUARANTINE_FILE, "w") as f:
-        json.dump(quarantine_data, f, indent=2)
+    json.dump(quarantine_data, open(QUARANTINE_FILE, "w"), indent=2)
 
 
 def increment_ban_counter(guild_id):

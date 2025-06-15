@@ -9,7 +9,6 @@ token = os.getenv("DISCORD_TOKEN")
 # Bot setup with slash commands enabled
 bot = commands.Bot(command_prefix=".", intents=discord.Intents.all())
 
-
 @bot.event
 async def on_ready():
     print(f"Bot logged in as {bot.user}!")
