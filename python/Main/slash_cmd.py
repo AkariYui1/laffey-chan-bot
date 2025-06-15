@@ -1,5 +1,4 @@
 import discord  # type: ignore
-from Fun.vie_dict.setup import setup_viedict_in_existing_channel, setup_viedict_channel
 from warn_logic import (
     warn_user_logic,
     check_warnings_logic,
@@ -9,6 +8,7 @@ from warn_logic import (
 )
 from channels import setup_quarantine_channel, setup_log_channel
 from consts import MessageOwner, bot
+from Fun.vie_dict.setup import setup_viedict_in_existing_channel, setup_viedict_channel
 from Fun.number_count.counting_logic import get_counting_stats
 from Fun.number_count.counting_setup import setup_counting_channel, setup_counting_in_existing_channel
 
@@ -198,10 +198,10 @@ async def setupcounting_slash(
             ephemeral=True,
         )
 
-@bot.tree.command(name="setupviedict", description="Setup a counting channel for the server")
+@bot.tree.command(name="setupviedict", description="Setup 1 kênh nối từ tiếng Việt")
 async def setupviedict_slash(
     interaction: discord.Interaction, 
-    channel: discord.TextChannel = None,
+    channel: discord.TextChannel | None = None,
     category_name: str = "Fun"
 ):
     """Setup counting channel with slash command"""
@@ -243,7 +243,7 @@ async def countingstats_slash(
     stats = await get_counting_stats(interaction.guild.id, user)
     if not stats:
         await interaction.response.send_message(
-            "❌ No counting channel set up for this server!", ephemeral=True
+            "❌ Chưa tạo kênh đếm số kìa!", ephemeral=True
         )
         return
     if user:
@@ -280,6 +280,56 @@ async def countingstats_slash(
             if leaderboard:
                 embed.add_field(
                     name="🏅 Top nghiện đếm số", value=leaderboard, inline=False
+                )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="viedictstats", description="View counting statistics")
+async def viedictstats_slash(
+    interaction: discord.Interaction, user: discord.Member | None = None
+):
+    """View counting statistics for server or specific user"""
+
+    stats = await get_counting_stats(interaction.guild.id, user)
+    if not stats:
+        await interaction.response.send_message(
+            "❌ Chưa tạo kênh nối từ kìa!", ephemeral=True
+        )
+        return
+    if user:
+        embed = discord.Embed(
+            title=f"Chỉ số nối từ tiếng Việt của {user.display_name}",
+            color=discord.Color.blue(),
+        )
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.add_field(name="✅ Đúng", value=f"{stats['correct']}", inline=True)
+        embed.add_field(name="❌ Sai", value=f"{stats['failed']}", inline=True)
+        embed.add_field(name="🎯 Độ chính xác", value=f"{stats['accuracy']:.1f}%", inline=True)
+
+    else:
+        embed = discord.Embed(
+            title=f"Chỉ số nối từ của toàn server",
+            color=discord.Color.blue(),
+        )
+        embed.add_field(name="🔢 Từ hiện tại", value=f"{stats['current_word']}", inline=True)
+        embed.add_field(name="🏆 Điểm cao nhất", value=f"{stats['high_score']}", inline=True)
+        embed.add_field(name="📊 Nối được", value=f"{stats['total_score']}", inline=True)
+
+        # Show top 5 counters
+        user_stats = stats["user_stats"]
+        if user_stats:
+            sorted_users = sorted(
+                user_stats.items(), key=lambda x: x[1]["correct"], reverse=True
+            )[:5]
+            leaderboard = ""
+            for i, (user_id, user_data) in enumerate(sorted_users, 1):
+                user_obj = interaction.guild.get_member(int(user_id))
+                user_name = user_obj.display_name if user_obj else "<Không xác định>"
+                leaderboard += f"{i}. {user_name}: {user_data['correct']} lần đếm đúng\n"
+
+            if leaderboard:
+                embed.add_field(
+                    name="🏅 Top nghiện nối từ", value=leaderboard, inline=False
                 )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)

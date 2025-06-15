@@ -15,6 +15,12 @@ Cài đặt các gói phụ thuộc:
 $ pip install -r pip-requirements.txt
 ```
 
+Lấy token cho bot, add bot vào server, tạo file `.env` và:
+
+```ini
+DISCORD_TOKEN=<token vừa lấy được>
+```
+
 Chạy:
 
 ```bash

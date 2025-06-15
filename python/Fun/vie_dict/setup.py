@@ -55,7 +55,7 @@ def is_viedict_channel(guild_id, channel_id):
 async def setup_viedict_channel(guild, moderator, response_func, category_name="Fun", ephemeral=False):
     # Check if we have the necessary permissions
     if not guild.me.guild_permissions.manage_channels:
-        error_msg = "❌ I don't have permission to create channels!"
+        error_msg = "❌ Không có quyền tạo kênh!"
         if ephemeral:
             await response_func(error_msg, ephemeral=True)
         else:
@@ -73,7 +73,7 @@ async def setup_viedict_channel(guild, moderator, response_func, category_name="
         try:
             category = await guild.create_category(category_name)
         except discord.Forbidden:
-            error_msg = "❌ I don't have permission to create categories!"
+            error_msg = "❌ Không có quyền tạo nhóm kênh!"
             if ephemeral:
                 await response_func(error_msg, ephemeral=True)
             else:
@@ -136,12 +136,11 @@ async def setup_viedict_channel(guild, moderator, response_func, category_name="
         # Send success message
         embed = discord.Embed(
             title="VieDict Channel Setup Complete",
-            description=f"Successfully set up counting channel: {viedict_channel.mention}",
+            description=f"Tạo kênh thành công: {viedict_channel.mention}",
             color=discord.Color.green(),
             timestamp=datetime.now(),
         )
         embed.add_field(name="Moderator", value=moderator.mention, inline=True)
-        embed.add_field(name="Next Number", value="1", inline=True)
 
         if ephemeral:
             await response_func(embed=embed, ephemeral=True)
@@ -202,14 +201,12 @@ async def setup_viedict_in_existing_channel(channel, moderator, response_func, e
 
         # Send success message
         embed = discord.Embed(
-            title="🔢 Counting Setup Complete",
-            description=f"Successfully set up counting in {channel.mention}",
+            title="Setup kênh Viedict thành công",
             color=discord.Color.green(),
             timestamp=datetime.now(),
         )
         embed.add_field(name="Moderator", value=moderator.mention, inline=True)
         embed.add_field(name="Channel", value=channel.mention, inline=True)
-        embed.add_field(name="Next Number", value="1", inline=True)
 
         if ephemeral:
             await response_func(embed=embed, ephemeral=True)
@@ -224,7 +221,7 @@ async def setup_viedict_in_existing_channel(channel, moderator, response_func, e
             await response_func(error_msg)
         return None
     except Exception as e:
-        error_msg = f"❌ Failed to setup counting in that channel: {str(e)}"
+        error_msg = f"❌ Failed to setup tieing words in that channel: {str(e)}"
         if ephemeral:
             await response_func(error_msg, ephemeral=True)
         else:

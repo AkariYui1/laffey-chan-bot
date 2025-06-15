@@ -1,8 +1,8 @@
 from bot_setup import bot
 import discord
 from datetime import datetime
-from Fun.vie_dict.logic import handle_viedict_message
 from quarantine import is_quarantine_channel, increment_ban_counter, get_log_channel
+from Fun.vie_dict.logic import handle_viedict_message
 from Fun.number_count.counting_logic import handle_counting_message
 
 # Error handling for slash commands
