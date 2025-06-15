@@ -1,5 +1,5 @@
 import json
-import discord
+import discord  # type: ignore
 import re
 from counting_setup import load_counting_channels, save_counting_channels, is_counting_channel
 

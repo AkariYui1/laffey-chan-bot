@@ -6,7 +6,7 @@ from .bot_warnings import (
     load_warnings,
     save_warnings,
 )
-import discord
+import discord # type: ignore
 from datetime import datetime, timedelta
 from quarantine import get_log_channel
 from bot_setup import bot
