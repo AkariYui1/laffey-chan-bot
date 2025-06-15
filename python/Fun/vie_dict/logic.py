@@ -56,7 +56,7 @@ async def handle_viedict_message(msg: discord.Message):
     
     if input_word != last_word:
         # await msg.delete()
-        # await msg.add_reaction("<:no:761520109864747030>")
+        await msg.add_reaction("<:no:761520109864747030>")
         warning_msg = await msg.channel.send(f"❌ Từ đầu tiên không trùng với từ cuối của (cụm) từ trước: {current_word}")
         # Auto-delete the warning message after 5 seconds
         await warning_msg.delete(delay=5)
@@ -68,7 +68,7 @@ async def handle_viedict_message(msg: discord.Message):
         for word in dictionary.words:
             if msg.content.lower() == word.text:
                 foundWord = True
-                # await msg.add_reaction("<a:tick:1382402150365397022>")
+                await msg.add_reaction("<a:tick:1382402150365397022>")
 
                 guild_data["current_word"] = msg.content
                 guild_data["total_score"] += 1
@@ -77,7 +77,7 @@ async def handle_viedict_message(msg: discord.Message):
                 break
         
         if not foundWord:
-            # await msg.add_reaction("<:no:761520109864747030>")
+            await msg.add_reaction("<:no:761520109864747030>")
             user_stats[user_id_str]["failed"] += 1
             warning_msg = await msg.channel.send(f"❌ Không thấy (cụm) từ này trong từ điển!")
             # Auto-delete the warning message after 5 seconds
