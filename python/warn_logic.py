@@ -1,4 +1,4 @@
-from warnings import (
+from warns import (
     add_warning,
     get_user_warnings,
     remove_warnings,
