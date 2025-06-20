@@ -2,8 +2,7 @@ import json
 import discord # type: ignore
 import os
 from datetime import datetime
-
-COUNTING_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "counting_channels.json")
+from Main.consts import COUNTING_FILE
 
 def load_counting_channels():
     """Load counting channels data from JSON file"""
@@ -48,12 +47,7 @@ def get_counting_channel(guild_id):
 
 def is_counting_channel(guild_id, channel_id):
     """Check if a channel is the counting channel for a guild"""
-    counting_data = load_counting_channels()
-    guild_str = str(guild_id)
-    
-    if guild_str in counting_data:
-        return counting_data[guild_str].get("channel_id") == channel_id
-    return False
+    return get_counting_channel(guild_id) == channel_id
 
 async def setup_counting_channel(guild, moderator, response_func, category_name="Fun", ephemeral=False):
     """Setup counting channel with proper permissions"""
@@ -111,10 +105,10 @@ async def setup_counting_channel(guild, moderator, response_func, category_name=
         }
 
         counting_channel = await guild.create_text_channel(
-            name="counting",
+            name="đếm-số",
             category=category,
             overwrites=counting_overwrites,
-            topic="Count numbers in order! Start with 1. Don't count twice in a row!",
+            topic="Đếm số từ 1.",
         )
 
         # Add channel to the database

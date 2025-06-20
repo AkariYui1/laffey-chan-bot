@@ -1,7 +1,7 @@
 import json
 import discord  # type: ignore
 import re
-from counting_setup import load_counting_channels, save_counting_channels, is_counting_channel
+from Fun.number_count.counting_setup import load_counting_channels, save_counting_channels, is_counting_channel
 
 def extract_first_number(text):
     """Extract the first number from text, handling various separators and formats"""

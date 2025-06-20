@@ -1,11 +1,9 @@
 from bot_setup import bot
-import discord # type: ignore
+import discord
 from datetime import datetime
 from quarantine import is_quarantine_channel, increment_ban_counter, get_log_channel
-import sys
-import os
-sys.path.append('../Fun/number_count')
-from counting_logic import handle_counting_message # type: ignore
+from Fun.vie_dict.logic import handle_viedict_message
+from Fun.number_count.counting_logic import handle_counting_message
 
 # Error handling for slash commands
 @bot.tree.error
@@ -14,23 +12,23 @@ async def on_app_command_error(
 ):
     if isinstance(error, discord.app_commands.MissingPermissions):
         await interaction.response.send_message(
-            "❌ You don't have permission to use this command!", ephemeral=True
+            "❌ Không đủ thẩm quyền để chạy lệnh này!", ephemeral=True
         )
     else:
         await interaction.response.send_message(
-            "❌ An error occurred while processing the command.", ephemeral=True
+            f"❌ Đã có lỗi xảy ra: {error}.", ephemeral=True
         )
         print(f"Command error: {error}")
 
 
 @bot.event
-async def on_message(message):
+async def on_message(message: discord.Message):
     # Ignore bot messages
     if message.author.bot:
         return
 
-    # Handle counting messages first
     await handle_counting_message(message)
+    await handle_viedict_message(message)
 
     # Check if message is in a quarantine channel
     if message.guild and is_quarantine_channel(message.guild.id, message.channel.id):
@@ -41,23 +39,22 @@ async def on_message(message):
                 await message.delete()
 
                 # Clear all messages in the channel from this user
-                async for msg in message.channel.history(limit=100):
-                    if msg.author == message.author and not msg.author.bot:
-                        try:
-                            await msg.delete()
-                        except:
-                            pass
+                # Why?
+                # async for msg in message.channel.history(limit=100):
+                #     if msg.author == message.author and not msg.author.bot:
+                #         try:
+                #             await msg.delete()
+                #         except:
+                #             pass
 
                 # Ban the user
                 await message.author.ban(reason="Posted in quarantine channel")
 
-                # Increment ban counter
                 ban_count = increment_ban_counter(message.guild.id)
 
-                # Create detailed log embed with comprehensive user information
                 embed = discord.Embed(
-                    title="🚫 User Auto-Banned",
-                    description=f"{message.author.mention} was automatically banned for posting in quarantine channel",
+                    title="🚫 Auto ban!",
+                    description=f"{message.author.mention} vừa bị ban vì đã đăng trong kênh cách ly",
                     color=discord.Color.red(),
                     timestamp=datetime.now(),
                 )
@@ -65,40 +62,13 @@ async def on_message(message):
                 # Basic user information
                 embed.add_field(
                     name="👤 User",
-                    value=f"{message.author} ({message.author.id})",
+                    value=f"{message.author.display_name} (ID: {message.author.id})",
                     inline=True,
-                )
-                embed.add_field(
-                    name="📝 Display Name",
-                    value=message.author.display_name,
-                    inline=True,
-                )
-                embed.add_field(
-                    name="🏷️ Username", value=f"@{message.author.name}", inline=True
-                )
-
-                # Account information
-                embed.add_field(
-                    name="📅 Account Created",
-                    value=f"<t:{int(message.author.created_at.timestamp())}:F>",
-                    inline=True,
-                )
-                embed.add_field(
-                    name="📥 Joined Server",
-                    value=(
-                        f"<t:{int(message.author.joined_at.timestamp())}:F>"
-                        if message.author.joined_at
-                        else "Unknown"
-                    ),
-                    inline=True,
-                )
-                embed.add_field(
-                    name="🆔 User ID", value=f"`{message.author.id}`", inline=True
                 )
 
                 # Channel and message information
                 embed.add_field(
-                    name="📍 Channel", value=message.channel.mention, inline=True
+                    name="📍 Kênh", value=message.channel.mention, inline=True
                 )
                 embed.add_field(
                     name="🏠 Guild",
@@ -106,66 +76,26 @@ async def on_message(message):
                     inline=True,
                 )
                 embed.add_field(
-                    name="🕒 Message Time",
+                    name="🕒 Thời gian nhắn",
                     value=f"<t:{int(message.created_at.timestamp())}:F>",
                     inline=True,
                 )
 
                 # Message content (with length limit)
-                message_content = (
-                    message.content if message.content else "*No text content*"
-                )
+                message_content = \
+                    message.content if message.content else "*Content không phải text*"
+                
                 if len(message_content) > 1000:
                     message_content = message_content[:1000] + "..."
+
                 embed.add_field(
-                    name="💬 Message Content",
+                    name="💬 Nội dung tin nhắn",
                     value=f"```{message_content}```",
                     inline=False,
                 )
 
-                # User roles (excluding @everyone)
-                user_roles = [
-                    role.mention
-                    for role in message.author.roles
-                    if role != message.guild.default_role
-                ]
-                if user_roles:
-                    roles_text = ", ".join(user_roles[:10])  # Limit to first 10 roles
-                    if len(user_roles) > 10:
-                        roles_text += f" and {len(user_roles) - 10} more..."
-                    embed.add_field(name="🎭 Roles", value=roles_text, inline=False)
-                else:
-                    embed.add_field(name="🎭 Roles", value="No roles", inline=False)
-
-                # Additional user information
                 embed.add_field(
-                    name="🤖 Bot Account",
-                    value="Yes" if message.author.bot else "No",
-                    inline=True,
-                )
-
-                # Check if user is on mobile (fix the mobile status check)
-                is_mobile = "Unknown"
-                if (
-                    hasattr(message.author, "mobile_status")
-                    and message.author.mobile_status != discord.Status.offline
-                ):
-                    is_mobile = "Yes"
-                elif hasattr(message.author, "mobile_status"):
-                    is_mobile = "No"
-                embed.add_field(name="📱 Mobile", value=is_mobile, inline=True)
-
-                # Check mutual guilds (this may not be available for all users)
-                mutual_guilds_count = "Unknown"
-                try:
-                    if hasattr(message.author, "mutual_guilds"):
-                        mutual_guilds_count = (
-                            f"{len(message.author.mutual_guilds)} servers"
-                        )
-                except:
-                    pass
-                embed.add_field(
-                    name="👥 Mutual Servers", value=mutual_guilds_count, inline=True
+                    name="ID tin nhắn", value=message.id, inline=False
                 )
 
                 # User avatar
@@ -173,36 +103,18 @@ async def on_message(message):
                     embed.set_thumbnail(url=message.author.avatar.url)
 
                 # Footer with additional context
-                embed.set_footer(text=f"Auto-ban executed • Message ID: {message.id}")
+                embed.set_footer(text=f"Tổng số auto-ban: {ban_count}")
 
                 # Send to log channel if set, otherwise do not log
-                log_channel_id = get_log_channel(message.guild.id)
-                if log_channel_id:
-                    log_channel = message.guild.get_channel(log_channel_id)
-                    if log_channel:
-                        await log_channel.send(embed=embed)
-
-                # Update ban counter in quarantine channel
-                counter_embed = discord.Embed(
-                    title="📊 Auto-Ban Counter Updated",
-                    description=f"**Total Auto-Bans: {ban_count}**",
-                    color=discord.Color.dark_red(),
-                    timestamp=datetime.now(),
-                )
-                counter_embed.add_field(
-                    name="Latest Ban",
-                    value=f"{message.author.mention} (`{message.author.id}`)",
-                    inline=False,
-                )
-                counter_embed.set_footer(text=f"Ban #{ban_count}")
-
-                await message.channel.send(embed=counter_embed)
+                if (log_channel_id := get_log_channel(message.guild.id)) and \
+                   (log_channel := message.guild.get_channel(log_channel_id)):
+                    await log_channel.send(embed=embed)
 
             except discord.Forbidden:
                 # If bot can't ban, send error message
                 embed = discord.Embed(
-                    title="⚠️ Quarantine Channel Alert",
-                    description=f"{message.author.mention} posted in quarantine channel but I couldn't ban them!",
+                    title="⚠️ Cảnh báo",
+                    description=f"Có tin nhắn từ {message.author.mention} trong kênh cấm chat nhưng bot không ban được!",
                     color=discord.Color.orange(),
                 )
                 await message.channel.send(embed=embed)

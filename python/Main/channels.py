@@ -11,11 +11,8 @@ async def setup_quarantine_channel(
     # First, check if we have the necessary permissions
     if not guild.me.guild_permissions.manage_channels:
         error_msg = "❌ I don't have permission to create channels!"
-        if ephemeral:
-            await response_func(error_msg, ephemeral=True)
-        else:
-            await response_func(error_msg)
-        return None
+        await response_func(error_msg, ephemeral=ephemeral)
+        return
 
     # Create or find a category for moderation channels
     category = None
@@ -30,11 +27,8 @@ async def setup_quarantine_channel(
             category = await guild.create_category(category_name)
         except discord.Forbidden:
             error_msg = "❌ I don't have permission to create categories!"
-            if ephemeral:
-                await response_func(error_msg, ephemeral=True)
-            else:
-                await response_func(error_msg)
-            return None
+            await response_func(error_msg, ephemeral=ephemeral)
+            return
 
     # Create quarantine channel with proper permissions
     quarantine_channel = None
@@ -60,7 +54,7 @@ async def setup_quarantine_channel(
             ),
         }
 
-        quarantine_channel = await guild.create_text_channel(
+        quarantine_channel: discord.TextChannel = await guild.create_text_channel(
             name="quarantine-zone",
             category=category,
             overwrites=quarantine_overwrites,
@@ -72,19 +66,9 @@ async def setup_quarantine_channel(
 
         # Create a warning message in the quarantine channel
         warning_embed = discord.Embed(
-            title="⚠️ QUARANTINE ZONE - WARNING ⚠️",
-            description="**This is a quarantine channel. Do not send messages here unless you're a moderator.**",  # Restored description
-            color=discord.Color.red(),  # Restored color
-        )
-        warning_embed.add_field(
-            name="⚠️ Automatic Ban Warning",
-            value="Any non-moderator who sends a message here will be **automatically banned**!",  # Restored warning
-            inline=False,
-        )
-        warning_embed.add_field(
-            name="Purpose",
-            value="This channel is used by moderators to segregate problematic content and ban violators.",  # Restored purpose
-            inline=False,
+            title="⚠️ ĐÂY LÀ KÊNH CÁCH LY SPAM/SCAMMER ⚠️",
+            description="**ĐỪNG DẠI GÌ MÀ GỬI TIN NHẮN Ở ĐÂY. NẾU CỐ TÌNH SẼ BỊ BAN.**",
+            color=discord.Color.red(),
         )
         warning_embed.set_footer(text=f"Channel created by {moderator}")
 
@@ -92,26 +76,20 @@ async def setup_quarantine_channel(
 
         # Send success message
         embed = discord.Embed(
-            title="🚫 Quarantine Channel Setup Complete",
-            description=f"Successfully set up quarantine channel: {quarantine_channel.mention}. Non-moderators posting here will be banned.",
-            color=discord.Color.red(),  # Restored color
+            title="🚫 Kênh cách ly đã được setup xong.",
+            description=f"Từ giờ bất kì ai không phải mod nhắn vào {quarantine_channel.mention} sẽ bị ban.",
+            color=discord.Color.red(),
             timestamp=datetime.now(),
         )
         embed.add_field(name="Moderator", value=moderator.mention, inline=True)
 
-        if ephemeral:
-            await response_func(embed=embed, ephemeral=True)
-        else:
-            await response_func(embed=embed)
+        await response_func(embed=embed, ephemeral=ephemeral)
 
     except discord.Forbidden:
         error_msg = (
-            "❌ I don't have permission to create or configure the quarantine channel!"
+            "❌ Không đủ thẩm quyền tạo/tác động đến kênh cách ly!"
         )
-        if ephemeral:
-            await response_func(error_msg, ephemeral=True)
-        else:
-            await response_func(error_msg)
+        await response_func(error_msg, ephemeral=ephemeral)
         return None
 
     return quarantine_channel
@@ -124,11 +102,8 @@ async def setup_log_channel(
 
     # First, check if we have the necessary permissions
     if not guild.me.guild_permissions.manage_channels:
-        error_msg = "❌ I don't have permission to create channels!"
-        if ephemeral:
-            await response_func(error_msg, ephemeral=True)
-        else:
-            await response_func(error_msg)
+        error_msg = "❌ Bot không đủ thẩm quyền để tạo+quản lí kênh!"
+        await response_func(error_msg, ephemeral=ephemeral)
         return None
 
     # Create or find a category for moderation channels
@@ -143,11 +118,8 @@ async def setup_log_channel(
         try:
             category = await guild.create_category(category_name)
         except discord.Forbidden:
-            error_msg = "❌ I don't have permission to create categories!"
-            if ephemeral:
-                await response_func(error_msg, ephemeral=True)
-            else:
-                await response_func(error_msg)
+            error_msg = "❌ Bot không đủ thẩm quyền tạo category mới!"
+            await response_func(error_msg, ephemeral=ephemeral)
             return None
 
     # Create logs channel
@@ -197,17 +169,11 @@ async def setup_log_channel(
             inline=False,
         )
 
-        if ephemeral:
-            await response_func(embed=embed, ephemeral=True)
-        else:
-            await response_func(embed=embed)
+        await response_func(embed=embed, ephemeral=ephemeral)
 
     except discord.Forbidden:
         error_msg = "❌ I don't have permission to create or configure the log channel!"
-        if ephemeral:
-            await response_func(error_msg, ephemeral=True)
-        else:
-            await response_func(error_msg)
+        await response_func(error_msg, ephemeral=ephemeral)
         return None
 
     return log_channel

@@ -1,9 +1,7 @@
 import json
 import os
 from datetime import datetime
-
-WARNINGS_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "warnings.json")
-
+from consts import WARNINGS_FILE
 
 def load_warnings():
     """Load warnings data from JSON file"""

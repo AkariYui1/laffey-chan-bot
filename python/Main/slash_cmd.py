@@ -1,4 +1,3 @@
-from bot_setup import bot
 import discord  # type: ignore
 from warn_logic import (
     warn_user_logic,
@@ -8,25 +7,30 @@ from warn_logic import (
     remove_timeout_logic,
 )
 from channels import setup_quarantine_channel, setup_log_channel
-import sys
-import os
+from consts import MessageOwner, bot
+from Fun.vie_dict.setup import setup_viedict_in_existing_channel, setup_viedict_channel
+from Fun.number_count.counting_logic import get_counting_stats
+from Fun.number_count.counting_setup import setup_counting_channel, setup_counting_in_existing_channel
 
-sys.path.append('../Fun/number_count')
-from counting_setup import setup_counting_channel, setup_counting_in_existing_channel # type: ignore
-from counting_logic import get_counting_stats # type: ignore
+async def isAdmin(interaction: discord.Interaction):
+    """
+    Verifies if the user that invokes the bot command/whatever is a server
+    moderator or not. If not, a message will be sent and this function will return False. Otherwise return True.
+    """
+    assert interaction or user
 
+    if not interaction.user.guild_permissions.kick_members:
+        await interaction.response.send_message(
+            "❌ Không đủ thẩm quyền!", ephemeral=True
+        )
+        return False
+    return True
 
-# SLASH COMMANDS
-@bot.tree.command(name="warn", description="Warn a user")
+@bot.tree.command(name="warn", description="Cảnh báo thành viên bất kì (trừ bản thân người sử dụng và bot)")
 async def warn_slash(
     interaction: discord.Interaction, user: discord.Member, reason: str
 ):
-    # Check if user has permission to warn
-    if not interaction.user.guild_permissions.kick_members:
-        await interaction.response.send_message(
-            "❌ You don't have permission to warn users!", ephemeral=True
-        )
-        return
+    if not await isAdmin(interaction): return
 
     await warn_user_logic(
         user,
@@ -37,19 +41,17 @@ async def warn_slash(
     )
 
 
-@bot.tree.command(name="warnings", description="Check warnings for a user")
-async def warnings_slash(interaction: discord.Interaction, user: discord.Member = None):
+@bot.tree.command(name="warnings", description="Xem những lần thành viên bị cảnh cáo")
+async def warnings_slash(interaction: discord.Interaction, user: MessageOwner | None = None):
     # Default to command user if no user specified
     if user is None:
         user = interaction.user
 
     # Check permissions - users can check their own warnings, moderators can check anyone's
-    if (
-        user.id != interaction.user.id
-        and not interaction.user.guild_permissions.kick_members
-    ):
+    if user.id != interaction.user.id and \
+            not interaction.user.guild_permissions.kick_members:
         await interaction.response.send_message(
-            "❌ You can only check your own warnings, or you need moderator permissions to check other users' warnings!",
+            "❌ Không đủ thẩm quyền để xem các cảnh báo đến người dùng khác!",
             ephemeral=True,
         )
         return
@@ -61,21 +63,17 @@ async def warnings_slash(interaction: discord.Interaction, user: discord.Member 
 
 @bot.tree.command(
     name="removewarnings",
-    description="Remove a specific amount of warnings from a user",
+    description="Gỡ bỏ số cảnh cáo nhất định khỏi 1 thành viên nào đó",
 )
 async def removewarnings_slash(
     interaction: discord.Interaction, user: discord.Member, amount: int
 ):
     # Check permissions (moderators can remove warnings)
-    if not interaction.user.guild_permissions.kick_members:
-        await interaction.response.send_message(
-            "❌ You need to be a moderator to remove warnings!", ephemeral=True
-        )
-        return
+    if not await isAdmin(interaction): return
 
     if amount <= 0:
         await interaction.response.send_message(
-            "❌ Amount must be a positive number!", ephemeral=True
+            "❌ Ai đời lại gỡ bỏ âm số cảnh báo?", ephemeral=True
         )
         return
 
@@ -88,15 +86,9 @@ async def removewarnings_slash(
         ephemeral=True,
     )
 
-
-@bot.tree.command(name="clearwarnings", description="Clear all warnings for a user")
+@bot.tree.command(name="clearwarnings", description="Gỡ mọi cảnh báo tới 1 thành viên")
 async def clearwarnings_slash(interaction: discord.Interaction, user: discord.Member):
-    # Check permissions (only admins can clear warnings)
-    if not interaction.user.guild_permissions.kick_members:
-        await interaction.response.send_message(
-            "❌ You need to be a moderator to clear warnings!", ephemeral=True
-        )
-        return
+    if not await isAdmin(interaction): return
 
     await clear_warnings_logic(
         user,
@@ -109,7 +101,7 @@ async def clearwarnings_slash(interaction: discord.Interaction, user: discord.Me
 
 @bot.tree.command(
     name="setupquarantine",
-    description="Setup quarantine channel (auto-bans non-moderators who post)",
+    description="Setup kênh auto-ban những ai không phải mod mà nhắn vào kênh",
 )
 async def setupquarantine_slash(
     interaction: discord.Interaction, category_name: str = "Moderation"
@@ -164,17 +156,11 @@ async def setuplog_slash(
 
 @bot.tree.command(name="removetimeout", description="Remove timeout from a user")
 async def removetimeout_slash(interaction: discord.Interaction, user: discord.Member):
-    # Check permissions (moderators can remove timeouts)
-    if not interaction.user.guild_permissions.kick_members:
-        await interaction.response.send_message(
-            "❌ You need to be a moderator to remove timeouts!", ephemeral=True
-        )
-        return
+    if not await isAdmin(interaction): return
 
     await remove_timeout_logic(
         user, interaction.user, interaction.response.send_message, ephemeral=True
     )
-
 
 @bot.tree.command(name="setupcounting", description="Setup a counting channel for the server")
 async def setupcounting_slash(
@@ -189,7 +175,7 @@ async def setupcounting_slash(
         and interaction.user.guild_permissions.manage_roles
     ):
         await interaction.response.send_message(
-            "❌ You need 'Manage Channels' and 'Manage Roles' permissions to set up a counting channel!",
+            "❌ Cần quyền quản lí kênh và role để tạo kênh!",
             ephemeral=True,
         )
         return
@@ -212,47 +198,72 @@ async def setupcounting_slash(
             ephemeral=True,
         )
 
+@bot.tree.command(name="setupviedict", description="Setup 1 kênh nối từ tiếng Việt")
+async def setupviedict_slash(
+    interaction: discord.Interaction, 
+    channel: discord.TextChannel | None = None,
+    category_name: str = "Fun"
+):
+    """Setup counting channel with slash command"""
+    # Check for specific permissions
+    if not (
+        interaction.user.guild_permissions.manage_channels
+        and interaction.user.guild_permissions.manage_roles
+    ):
+        await interaction.response.send_message(
+            "❌ Cần quyền quản lí kênh và role để tạo kênh!",
+            ephemeral=True,
+        )
+        return
+
+    if channel:
+        # Setup counting in the specified existing channel
+        await setup_viedict_in_existing_channel(
+            channel,
+            interaction.user,
+            interaction.response.send_message,
+            ephemeral=True,
+        )
+    else:
+        # Create a new counting channel
+        await setup_viedict_channel(
+            interaction.guild,
+            interaction.user,
+            interaction.response.send_message,
+            category_name,
+            ephemeral=True,
+        )
 
 @bot.tree.command(name="countingstats", description="View counting statistics")
 async def countingstats_slash(
-    interaction: discord.Interaction, user: discord.Member = None
+    interaction: discord.Interaction, user: discord.Member | None = None
 ):
     """View counting statistics for server or specific user"""
 
+    stats = await get_counting_stats(interaction.guild.id, user)
+    if not stats:
+        await interaction.response.send_message(
+            "❌ Chưa tạo kênh đếm số kìa!", ephemeral=True
+        )
+        return
     if user:
-        # Get user-specific stats
-        stats = await get_counting_stats(interaction.guild.id, user)
-        if not stats:
-            await interaction.response.send_message(
-                "❌ No counting channel set up for this server!", ephemeral=True
-            )
-            return
-
         embed = discord.Embed(
-            title=f"🔢 Counting Stats for {user.display_name}",
+            title=f"🔢 Chỉ số đếm số của {user.display_name}",
             color=discord.Color.blue(),
         )
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="✅ Correct", value=f"{stats['correct']}", inline=True)
-        embed.add_field(name="❌ Failed", value=f"{stats['failed']}", inline=True)
-        embed.add_field(name="🎯 Accuracy", value=f"{stats['accuracy']:.1f}%", inline=True)
+        embed.add_field(name="✅ Đúng", value=f"{stats['correct']}", inline=True)
+        embed.add_field(name="❌ Sai", value=f"{stats['failed']}", inline=True)
+        embed.add_field(name="🎯 Độ chính xác", value=f"{stats['accuracy']:.1f}%", inline=True)
 
     else:
-        # Get server stats
-        stats = await get_counting_stats(interaction.guild.id)
-        if not stats:
-            await interaction.response.send_message(
-                "❌ No counting channel set up for this server!", ephemeral=True
-            )
-            return
-
         embed = discord.Embed(
-            title=f"🔢 Server Counting Stats",
+            title=f"🔢 Chỉ số đếm số của toàn server",
             color=discord.Color.blue(),
         )
-        embed.add_field(name="🔢 Current Number", value=f"{stats['current_number']}", inline=True)
-        embed.add_field(name="🏆 High Score", value=f"{stats['high_score']}", inline=True)
-        embed.add_field(name="📊 Total Counts", value=f"{stats['total_counts']}", inline=True)
+        embed.add_field(name="🔢 Số hiện tại", value=f"{stats['current_number']}", inline=True)
+        embed.add_field(name="🏆 Điểm cao nhất", value=f"{stats['high_score']}", inline=True)
+        embed.add_field(name="📊 Đếm được", value=f"{stats['total_counts']}", inline=True)
 
         # Show top 5 counters
         user_stats = stats["user_stats"]
@@ -263,12 +274,62 @@ async def countingstats_slash(
             leaderboard = ""
             for i, (user_id, user_data) in enumerate(sorted_users, 1):
                 user_obj = interaction.guild.get_member(int(user_id))
-                user_name = user_obj.display_name if user_obj else "Unknown User"
-                leaderboard += f"{i}. {user_name}: {user_data['correct']} correct\n"
+                user_name = user_obj.display_name if user_obj else "<Không xác định>"
+                leaderboard += f"{i}. {user_name}: {user_data['correct']} lần đếm đúng\n"
 
             if leaderboard:
                 embed.add_field(
-                    name="🏅 Top Counters", value=leaderboard, inline=False
+                    name="🏅 Top nghiện đếm số", value=leaderboard, inline=False
+                )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="viedictstats", description="View counting statistics")
+async def viedictstats_slash(
+    interaction: discord.Interaction, user: discord.Member | None = None
+):
+    """View counting statistics for server or specific user"""
+
+    stats = await get_counting_stats(interaction.guild.id, user)
+    if not stats:
+        await interaction.response.send_message(
+            "❌ Chưa tạo kênh nối từ kìa!", ephemeral=True
+        )
+        return
+    if user:
+        embed = discord.Embed(
+            title=f"Chỉ số nối từ tiếng Việt của {user.display_name}",
+            color=discord.Color.blue(),
+        )
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.add_field(name="✅ Đúng", value=f"{stats['correct']}", inline=True)
+        embed.add_field(name="❌ Sai", value=f"{stats['failed']}", inline=True)
+        embed.add_field(name="🎯 Độ chính xác", value=f"{stats['accuracy']:.1f}%", inline=True)
+
+    else:
+        embed = discord.Embed(
+            title=f"Chỉ số nối từ của toàn server",
+            color=discord.Color.blue(),
+        )
+        embed.add_field(name="🔢 Từ hiện tại", value=f"{stats['current_word']}", inline=True)
+        embed.add_field(name="🏆 Điểm cao nhất", value=f"{stats['high_score']}", inline=True)
+        embed.add_field(name="📊 Nối được", value=f"{stats['total_score']}", inline=True)
+
+        # Show top 5 counters
+        user_stats = stats["user_stats"]
+        if user_stats:
+            sorted_users = sorted(
+                user_stats.items(), key=lambda x: x[1]["correct"], reverse=True
+            )[:5]
+            leaderboard = ""
+            for i, (user_id, user_data) in enumerate(sorted_users, 1):
+                user_obj = interaction.guild.get_member(int(user_id))
+                user_name = user_obj.display_name if user_obj else "<Không xác định>"
+                leaderboard += f"{i}. {user_name}: {user_data['correct']} lần đếm đúng\n"
+
+            if leaderboard:
+                embed.add_field(
+                    name="🏅 Top nghiện nối từ", value=leaderboard, inline=False
                 )
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
